@@ -1,0 +1,10 @@
+[project]
+name = "Attendancebot"
+version = "0.1.0"
+description = "A slack bot that checks if you will be in office the next day."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "python-dotenv>=1.0.1",
+    "slack-bolt>=1.22.0",
+]
