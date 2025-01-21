@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  attendance-bot:
+    build: .
+    environment:
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+    restart: always
+    volumes:
+      - ./.env:/app/.env 
