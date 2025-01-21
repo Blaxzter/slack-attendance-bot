@@ -9,10 +9,32 @@ A simple Slack bot that helps track office attendance by creating polls and coll
 
 ## Features
 
-- Create attendance polls with a simple slash command (`/attendance-poll`)
-- Three response options: Yes 👍, No 👎, Maybe 🤔
-- Real-time updating summary of responses
-- Single message interface - no spam!
+- Daily attendance polling
+- Attendance statistics
+- Direct messaging with the bot
+- Slash commands for managing polls
+
+## Available Commands
+
+- `/attendance-poll` - Starts a poll
+- `/new-poll` - Force create a new poll (deletes previous one)
+- `/delete-poll` - Delete the current active poll
+- `/attendance-stats` - Show current attendance statistics
+- `/attendance-help` - Show help message
+
+## Direct Messaging
+
+You can interact with AttendanceBot directly through Slack's Apps section:
+
+1. Find AttendanceBot in your Slack workspace's Apps section
+2. Click on the bot to start a direct message
+3. Send messages to interact with the bot
+
+The bot can:
+- Respond to your messages
+- Show your attendance status
+- Accept attendance updates
+- Provide help and information
 
 ## Setup
 

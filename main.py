@@ -283,7 +283,17 @@ def show_help(ack, respond):
 • Responses are collected and summarized
 • You can use the commands above to manage the polls
 """
-    respond({"text": help_text, "mrkdwn": True})
+    respond(
+        blocks=[
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": help_text
+                }
+            }
+        ]
+    )
 
 
 # Main function to run the bot
