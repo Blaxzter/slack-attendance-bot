@@ -1,0 +1,62 @@
+{
+    "display_information": {
+        "name": "AttendanceBot",
+        "description": "Checks if employees come into office the next day",
+        "background_color": "#020b21"
+    },
+    "features": {
+        "bot_user": {
+            "display_name": "AttendanceBot",
+            "always_online": true
+        },
+        "slash_commands": [
+            {
+                "command": "/attendance-poll",
+                "description": "Starts a poll",
+                "should_escape": false
+            },
+            {
+                "command": "/new-poll",
+                "description": "Force create a new poll (deletes previous one)",
+                "should_escape": false
+            },
+            {
+                "command": "/delete-poll",
+                "description": "Delete the current active poll",
+                "should_escape": false
+            },
+            {
+                "command": "/attendance-stats",
+                "description": "Show current attendance statistics",
+                "should_escape": false
+            },
+            {
+                "command": "/attendance-help",
+                "description": "Show this help message",
+                "should_escape": false
+            }
+        ]
+    },
+    "oauth_config": {
+        "scopes": {
+            "bot": [
+                "channels:read",
+                "chat:write",
+                "commands",
+                "groups:read",
+                "im:write",
+                "users:read",
+                "users:read.email",
+                "im:history"
+            ]
+        }
+    },
+    "settings": {
+        "interactivity": {
+            "is_enabled": true
+        },
+        "org_deploy_enabled": false,
+        "socket_mode_enabled": true,
+        "token_rotation_enabled": false
+    }
+}
