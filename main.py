@@ -114,18 +114,21 @@ def send_attendance_poll():
         print(f"Error sending attendance poll: {e}")
 
 
-def update_summary(body):
-    tomorrow = get_tomorrow_date()
-    user_id = body["user"]["id"]
-    
-    if tomorrow in message_tracking and user_id in message_tracking[tomorrow]:
-        msg_info = message_tracking[tomorrow][user_id]
-        app.client.chat_update(
-            channel=msg_info["channel"],
-            ts=msg_info["ts"],
-            blocks=create_summary_blocks(responses, tomorrow),
-            text="Will you be coming to the office tomorrow?"
-        )
+def update_all_summaries(tomorrow_date=None):
+    if tomorrow_date is None:
+        tomorrow_date = get_tomorrow_date()
+        
+    if tomorrow_date in message_tracking:
+        for user_id, msg_info in message_tracking[tomorrow_date].items():
+            try:
+                app.client.chat_update(
+                    channel=msg_info["channel"],
+                    ts=msg_info["ts"],
+                    blocks=create_summary_blocks(responses, tomorrow_date),
+                    text="Will you be coming to the office tomorrow?"
+                )
+            except Exception as e:
+                print(f"Error updating message for user {user_id}: {e}")
 
 
 # Handle responses
@@ -134,7 +137,7 @@ def handle_yes(ack, body):
     ack()
     user = body["user"]["name"]
     responses[user] = "yes"
-    update_summary(body)
+    update_all_summaries()  # Update messages for all users
 
 
 @app.action("attendance_no")
@@ -142,7 +145,7 @@ def handle_no(ack, body):
     ack()
     user = body["user"]["name"]
     responses[user] = "no"
-    update_summary(body)
+    update_all_summaries()  # Update messages for all users
 
 
 @app.action("attendance_maybe")
@@ -150,7 +153,7 @@ def handle_maybe(ack, body):
     ack()
     user = body["user"]["name"]
     responses[user] = "maybe"
-    update_summary(body)
+    update_all_summaries()  # Update messages for all users
 
 
 # Command to trigger the poll manually
