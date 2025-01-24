@@ -22,6 +22,10 @@ def get_tomorrow_date():
     return tomorrow.strftime("%Y-%m-%d")
 
 
+def is_workday(date):
+    # Check if the given date is a weekday (Monday = 0, Sunday = 6)
+    return date.weekday() < 5
+
 def create_summary_blocks(responses, tomorrow_date):
     coming = [user for user, response in responses.items() if response == "yes"]
     not_coming = [user for user, response in responses.items() if response == "no"]
@@ -163,13 +167,18 @@ def create_poll(ack, body):
     send_attendance_poll()
 
 
+def is_next_day_weekday():
+    berlin_tz = pytz.timezone('Europe/Berlin')
+    tomorrow = datetime.now(berlin_tz) + timedelta(days=1)
+    return tomorrow.weekday() < 5  # 0-4 are Monday-Friday
+
 def schedule_daily_poll():
     scheduler = BackgroundScheduler()
     berlin_tz = pytz.timezone('Europe/Berlin')
     
-    # Schedule the job to run at 18:00 Berlin time
+    # Schedule the job to run at 18:00 Berlin time, but only if next day is a weekday
     scheduler.add_job(
-        send_attendance_poll,
+        lambda: send_attendance_poll() if is_next_day_weekday() else None,
         'cron',
         hour=18,
         minute=0,
