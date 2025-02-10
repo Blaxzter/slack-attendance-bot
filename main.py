@@ -23,6 +23,10 @@ def get_tomorrow_date():
     return tomorrow.strftime("%Y-%m-%d")
 
 
+def is_workday(date):
+    # Check if the given date is a weekday (Monday = 0, Sunday = 6)
+    return date.weekday() < 5
+
 def create_summary_blocks(responses, tomorrow_date):
     coming = [user for user, response in responses.items() if response == "yes"]
     not_coming = [user for user, response in responses.items() if response == "no"]
@@ -119,19 +123,25 @@ def send_attendance_poll():
         print(f"Error sending attendance poll: {e}")
 
 
-def update_summary(body):
+def update_all_summaries(tomorrow_date=None):
     global current_poll_date
-    user_id = body["user"]["id"]
-    
-    # Use the current poll date instead of getting a new tomorrow date
-    if current_poll_date and current_poll_date in message_tracking and user_id in message_tracking[current_poll_date]:
-        msg_info = message_tracking[current_poll_date][user_id]
-        app.client.chat_update(
-            channel=msg_info["channel"],
-            ts=msg_info["ts"],
-            blocks=create_summary_blocks(responses, current_poll_date),
-            text="Will you be coming to the office tomorrow?"
-        )
+    if tomorrow_date is None:
+        working_date = current_poll_date
+    else:
+        working_date = tomorrow_date
+
+    if working_date and working_date in message_tracking:
+        for user_id, msg_info in message_tracking[working_date].items():
+            try:
+
+                app.client.chat_update(
+                    channel=msg_info["channel"],
+                    ts=msg_info["ts"],
+                    blocks=create_summary_blocks(responses, working_date),
+                    text="Will you be coming to the office tomorrow?"
+                )
+            except Exception as e:
+                print(f"Error updating message for user {user_id}: {e}")
 
 
 # Handle responses
@@ -140,7 +150,7 @@ def handle_yes(ack, body):
     ack()
     user = body["user"]["name"]
     responses[user] = "yes"
-    update_summary(body)
+    update_all_summaries()  # Update messages for all users
 
 
 @app.action("attendance_no")
@@ -148,7 +158,7 @@ def handle_no(ack, body):
     ack()
     user = body["user"]["name"]
     responses[user] = "no"
-    update_summary(body)
+    update_all_summaries()  # Update messages for all users
 
 
 @app.action("attendance_maybe")
@@ -156,7 +166,7 @@ def handle_maybe(ack, body):
     ack()
     user = body["user"]["name"]
     responses[user] = "maybe"
-    update_summary(body)
+    update_all_summaries()  # Update messages for all users
 
 
 # Command to trigger the poll manually
@@ -166,13 +176,18 @@ def create_poll(ack, body):
     send_attendance_poll()
 
 
+def is_next_day_weekday():
+    berlin_tz = pytz.timezone('Europe/Berlin')
+    tomorrow = datetime.now(berlin_tz) + timedelta(days=1)
+    return tomorrow.weekday() < 5  # 0-4 are Monday-Friday
+
 def schedule_daily_poll():
     scheduler = BackgroundScheduler()
     berlin_tz = pytz.timezone('Europe/Berlin')
     
-    # Schedule the job to run at 18:00 Berlin time
+    # Schedule the job to run at 18:00 Berlin time, but only if next day is a weekday
     scheduler.add_job(
-        send_attendance_poll,
+        lambda: send_attendance_poll() if is_next_day_weekday() else None,
         'cron',
         hour=18,
         minute=0,
