@@ -14,6 +14,7 @@ app = App(token=os.environ["SLACK_BOT_TOKEN"])
 # Store responses and message tracking
 responses = {}
 message_tracking = {}  # Track the original message for each day
+current_poll_date = None  # Store the date of the current active poll
 
 
 def get_tomorrow_date():
@@ -84,6 +85,10 @@ def send_attendance_poll():
         # Clear previous responses for the new poll
         responses.clear()
         
+        # Set the current poll date
+        global current_poll_date
+        current_poll_date = tomorrow
+        
         for user in users:
             # Skip bots, deleted users, and slackbot
             if (user["is_bot"] or 
@@ -115,15 +120,16 @@ def send_attendance_poll():
 
 
 def update_summary(body):
-    tomorrow = get_tomorrow_date()
+    global current_poll_date
     user_id = body["user"]["id"]
     
-    if tomorrow in message_tracking and user_id in message_tracking[tomorrow]:
-        msg_info = message_tracking[tomorrow][user_id]
+    # Use the current poll date instead of getting a new tomorrow date
+    if current_poll_date and current_poll_date in message_tracking and user_id in message_tracking[current_poll_date]:
+        msg_info = message_tracking[current_poll_date][user_id]
         app.client.chat_update(
             channel=msg_info["channel"],
             ts=msg_info["ts"],
-            blocks=create_summary_blocks(responses, tomorrow),
+            blocks=create_summary_blocks(responses, current_poll_date),
             text="Will you be coming to the office tomorrow?"
         )
 
@@ -178,8 +184,9 @@ def schedule_daily_poll():
 
 def delete_previous_messages(tomorrow_date=None):
     try:
+        global current_poll_date
         if tomorrow_date is None:
-            tomorrow_date = get_tomorrow_date()
+            tomorrow_date = current_poll_date
             
         if tomorrow_date in message_tracking:
             for user_id, msg_info in message_tracking[tomorrow_date].items():
@@ -193,6 +200,7 @@ def delete_previous_messages(tomorrow_date=None):
             
             del message_tracking[tomorrow_date]
             responses.clear()
+            current_poll_date = None
             return True
         return False
     except Exception as e:
@@ -201,15 +209,15 @@ def delete_previous_messages(tomorrow_date=None):
 
 
 def get_attendance_stats():
-    tomorrow = get_tomorrow_date()
+    global current_poll_date
     total_users = len(responses)
     coming = len([u for u, r in responses.items() if r == "yes"])
     not_coming = len([u for u, r in responses.items() if r == "no"])
     maybe = len([u for u, r in responses.items() if r == "maybe"])
-    no_response = len(message_tracking.get(tomorrow, {})) - total_users
+    no_response = len(message_tracking.get(current_poll_date, {})) - total_users if current_poll_date else 0
     
     return {
-        "date": tomorrow,
+        "date": current_poll_date or get_tomorrow_date(),
         "total_responses": total_users,
         "coming": coming,
         "not_coming": not_coming,
