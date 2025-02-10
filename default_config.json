@@ -1,0 +1,35 @@
+{
+    "poll_schedule": {
+        "hour": 18,
+        "minute": 0,
+        "timezone": "Europe/Berlin"
+    },
+    "workdays": {
+        "monday": true,
+        "tuesday": true,
+        "wednesday": true,
+        "thursday": true,
+        "friday": true,
+        "saturday": false,
+        "sunday": false
+    },
+    "response_options": [
+        {
+            "text": "Yes 👍",
+            "value": "yes",
+            "action_id": "attendance_yes"
+        },
+        {
+            "text": "No 👎",
+            "value": "no",
+            "action_id": "attendance_no"
+        },
+        {
+            "text": "Maybe 🤔",
+            "value": "maybe",
+            "action_id": "attendance_maybe"
+        }
+    ],
+    "message_template": "Will you be coming to the office tomorrow ({date})? 🏢",
+    "summary_template": "*Attendance Summary for {date}*\nComing to office ({coming_count}): {coming_users}\nNot coming ({not_coming_count}): {not_coming_users}\nMaybe ({maybe_count}): {maybe_users}"
+} 

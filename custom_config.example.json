@@ -1,0 +1,35 @@
+{
+    "poll_schedule": {
+        "hour": 16,
+        "minute": 30,
+        "timezone": "America/New_York"
+    },
+    "workdays": {
+        "monday": true,
+        "tuesday": true,
+        "wednesday": true,
+        "thursday": true,
+        "friday": true,
+        "saturday": false,
+        "sunday": false
+    },
+    "response_options": [
+        {
+            "text": "Yes - Full Day 📅",
+            "value": "yes_full",
+            "action_id": "attendance_yes_full"
+        },
+        {
+            "text": "Yes - Half Day 📅",
+            "value": "yes_half",
+            "action_id": "attendance_yes_half"
+        },
+        {
+            "text": "No ❌",
+            "value": "no",
+            "action_id": "attendance_no"
+        }
+    ],
+    "message_template": "Hey! 👋 Will you be in the office tomorrow ({date})?",
+    "summary_template": "*Office Attendance for {date}*\n🏢 Full Day ({coming_count}): {coming_users}\n🏢 Half Day ({maybe_count}): {maybe_users}\n❌ Not Coming ({not_coming_count}): {not_coming_users}"
+} 

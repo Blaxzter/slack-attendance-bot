@@ -5,8 +5,13 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from datetime import datetime, timedelta
 import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
+from config import Config
 
 load_dotenv()
+
+# Initialize configuration
+config = Config()
+config.validate()
 
 # Initialize the Slack app
 app = App(token=os.environ["SLACK_BOT_TOKEN"])
@@ -18,26 +23,34 @@ current_poll_date = None  # Store the date of the current active poll
 
 
 def get_tomorrow_date():
-    berlin_tz = pytz.timezone('Europe/Berlin')
-    tomorrow = datetime.now(berlin_tz) + timedelta(days=1)
+    timezone = config.get_schedule()['timezone']
+    tz = pytz.timezone(timezone)
+    tomorrow = datetime.now(tz) + timedelta(days=1)
     return tomorrow.strftime("%Y-%m-%d")
 
 
 def is_workday(date):
-    # Check if the given date is a weekday (Monday = 0, Sunday = 6)
-    return date.weekday() < 5
+    workdays = config.get_workdays()
+    # Convert weekday number (0-6) to day name (monday-sunday)
+    day_names = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    return workdays[day_names[date.weekday()]]
+
 
 def create_summary_blocks(responses, tomorrow_date):
     coming = [user for user, response in responses.items() if response == "yes"]
     not_coming = [user for user, response in responses.items() if response == "no"]
     maybe = [user for user, response in responses.items() if response == "maybe"]
 
+    # Get message templates from config
+    message_template = config.get_message_template()
+    summary_template = config.get_summary_template()
+
     blocks = [
         {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"Will you be coming to the office tomorrow ({tomorrow_date})? 🏢",
+                "text": message_template.format(date=tomorrow_date),
             },
         },
         {
@@ -45,33 +58,25 @@ def create_summary_blocks(responses, tomorrow_date):
             "elements": [
                 {
                     "type": "button",
-                    "text": {"type": "plain_text", "text": "Yes 👍"},
-                    "value": "yes",
-                    "action_id": "attendance_yes",
-                },
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": "No 👎"},
-                    "value": "no",
-                    "action_id": "attendance_no",
-                },
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": "Maybe 🤔"},
-                    "value": "maybe",
-                    "action_id": "attendance_maybe",
-                },
+                    "text": {"type": "plain_text", "text": option["text"]},
+                    "value": option["value"],
+                    "action_id": option["action_id"],
+                }
+                for option in config.get_response_options()
             ],
         },
         {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": (
-                    f"*Attendance Summary for {tomorrow_date}*\n"
-                    f"Coming to office ({len(coming)}): {', '.join(coming) if coming else 'None'}\n"
-                    f"Not coming ({len(not_coming)}): {', '.join(not_coming) if not_coming else 'None'}\n"
-                    f"Maybe ({len(maybe)}): {', '.join(maybe) if maybe else 'None'}"
+                "text": summary_template.format(
+                    date=tomorrow_date,
+                    coming_count=len(coming),
+                    coming_users=', '.join(coming) if coming else 'None',
+                    not_coming_count=len(not_coming),
+                    not_coming_users=', '.join(not_coming) if not_coming else 'None',
+                    maybe_count=len(maybe),
+                    maybe_users=', '.join(maybe) if maybe else 'None'
                 ),
             },
         },
@@ -176,22 +181,25 @@ def create_poll(ack, body):
     send_attendance_poll()
 
 
-def is_next_day_weekday():
-    berlin_tz = pytz.timezone('Europe/Berlin')
-    tomorrow = datetime.now(berlin_tz) + timedelta(days=1)
-    return tomorrow.weekday() < 5  # 0-4 are Monday-Friday
+def is_next_day_workday():
+    timezone = config.get_schedule()['timezone']
+    tz = pytz.timezone(timezone)
+    tomorrow = datetime.now(tz) + timedelta(days=1)
+    return is_workday(tomorrow)
+
 
 def schedule_daily_poll():
     scheduler = BackgroundScheduler()
-    berlin_tz = pytz.timezone('Europe/Berlin')
+    schedule = config.get_schedule()
+    tz = pytz.timezone(schedule['timezone'])
     
-    # Schedule the job to run at 18:00 Berlin time, but only if next day is a weekday
+    # Schedule the job to run at configured time, but only if next day is a workday
     scheduler.add_job(
-        lambda: send_attendance_poll() if is_next_day_weekday() else None,
+        lambda: send_attendance_poll() if is_next_day_workday() else None,
         'cron',
-        hour=18,
-        minute=0,
-        timezone=berlin_tz
+        hour=schedule['hour'],
+        minute=schedule['minute'],
+        timezone=tz
     )
     
     scheduler.start()
