@@ -34,6 +34,21 @@
                 "command": "/attendance-help",
                 "description": "Show this help message",
                 "should_escape": false
+            },
+            {
+                "command": "/attendance-mute",
+                "description": "Mute the bot for a specified number of days",
+                "should_escape": false
+            },
+            {
+                "command": "/attendance-unmute",
+                "description": "Unmute the bot if it's currently muted",
+                "should_escape": false
+            },
+            {
+                "command": "/attendance-mute-status",
+                "description": "Check your current mute status",
+                "should_escape": false
             }
         ]
     },

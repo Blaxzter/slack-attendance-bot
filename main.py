@@ -20,6 +20,7 @@ app = App(token=os.environ["SLACK_BOT_TOKEN"])
 responses = {}
 message_tracking = {}  # Track the original message for each day
 current_poll_date = None  # Store the date of the current active poll
+muted_users = {}  # Store user IDs with their mute expiration dates
 
 
 def get_tomorrow_date():
@@ -98,6 +99,11 @@ def send_attendance_poll():
         global current_poll_date
         current_poll_date = tomorrow
         
+        # Get current date for mute check
+        timezone = config.get_schedule()['timezone']
+        tz = pytz.timezone(timezone)
+        current_date = datetime.now(tz).date()
+        
         for user in users:
             # Skip bots, deleted users, and slackbot
             if (user["is_bot"] or 
@@ -105,6 +111,11 @@ def send_attendance_poll():
                 user["name"] == "slackbot"):
                 continue
                 
+            # Skip muted users
+            if user["id"] in muted_users and muted_users[user["id"]] >= current_date:
+                print(f"Skipping muted user: {user['name']}, muted until: {muted_users[user['id']]}")
+                continue
+            
             try:
                 # Open DM channel with user
                 dm_channel = app.client.conversations_open(users=user["id"])
@@ -189,6 +200,7 @@ def is_next_day_workday():
 
 
 def schedule_daily_poll():
+    """Schedule the daily attendance poll"""
     scheduler = BackgroundScheduler()
     schedule = config.get_schedule()
     tz = pytz.timezone(schedule['timezone'])
@@ -202,7 +214,36 @@ def schedule_daily_poll():
         timezone=tz
     )
     
+    # Add job to clean up expired mutes
+    scheduler.add_job(
+        cleanup_expired_mutes,
+        'cron',
+        hour=0,  # Run at midnight
+        minute=0,
+        timezone=tz,
+    )
+    
     scheduler.start()
+    print(f"Scheduled daily attendance poll for {schedule['hour']}:{schedule['minute']} {schedule['timezone']}")
+
+
+def cleanup_expired_mutes():
+    """Clean up expired muted users"""
+    timezone = config.get_schedule()['timezone']
+    tz = pytz.timezone(timezone)
+    current_date = datetime.now(tz).date()
+    
+    expired_mutes = []
+    for user_id, expiration_date in muted_users.items():
+        if expiration_date < current_date:
+            expired_mutes.append(user_id)
+    
+    # Remove expired mutes
+    for user_id in expired_mutes:
+        del muted_users[user_id]
+    
+    if expired_mutes:
+        print(f"Cleaned up {len(expired_mutes)} expired mutes")
 
 
 def delete_previous_messages(tomorrow_date=None):
@@ -296,6 +337,80 @@ def get_stats(ack, body, respond):
     )
 
 
+# Command to mute the bot for a specific number of days
+@app.command("/attendance-mute")
+def mute_bot(ack, body, respond):
+    ack()
+    user_id = body["user_id"]
+    text = body.get("text", "").strip()
+    
+    try:
+        # Parse the number of days from the command
+        if not text:
+            respond("Please specify the number of days to mute the bot. Example: `/attendance-mute 5`")
+            return
+            
+        days = int(text)
+        if days <= 0:
+            respond("Please provide a positive number of days.")
+            return
+        
+        # Calculate the mute expiration date
+        timezone = config.get_schedule()['timezone']
+        tz = pytz.timezone(timezone)
+        current_date = datetime.now(tz).date()
+        expiration_date = current_date + timedelta(days=days)
+        
+        # Store the mute information
+        muted_users[user_id] = expiration_date
+        
+        # Format the expiration date for the response
+        formatted_date = expiration_date.strftime("%A, %B %d, %Y")
+        
+        respond(f"You have muted the attendance bot until {formatted_date}. You will not receive attendance polls until then.")
+    except ValueError:
+        respond("Invalid input. Please provide a number of days to mute the bot. Example: `/attendance-mute 5`")
+    except Exception as e:
+        respond(f"Error processing your request: {e}")
+
+
+# Command to unmute the bot
+@app.command("/attendance-unmute")
+def unmute_bot(ack, body, respond):
+    ack()
+    user_id = body["user_id"]
+    
+    if user_id in muted_users:
+        del muted_users[user_id]
+        respond("You have successfully unmuted the attendance bot. You will now receive attendance polls.")
+    else:
+        respond("You are not currently muted and are already receiving attendance polls.")
+
+
+# Command to check mute status
+@app.command("/attendance-mute-status")
+def check_mute_status(ack, body, respond):
+    ack()
+    user_id = body["user_id"]
+    
+    timezone = config.get_schedule()['timezone']
+    tz = pytz.timezone(timezone)
+    current_date = datetime.now(tz).date()
+    
+    if user_id in muted_users:
+        expiration_date = muted_users[user_id]
+        if expiration_date >= current_date:
+            days_left = (expiration_date - current_date).days
+            formatted_date = expiration_date.strftime("%A, %B %d, %Y")
+            respond(f"You have muted the attendance bot until {formatted_date} ({days_left} days remaining).")
+        else:
+            # Mute has expired, clean it up
+            del muted_users[user_id]
+            respond("You are not currently muted and are receiving attendance polls.")
+    else:
+        respond("You are not currently muted and are receiving attendance polls.")
+
+
 # Command to show help
 @app.command("/attendance-help")
 def show_help(ack, respond):
@@ -306,6 +421,9 @@ def show_help(ack, respond):
 • `/new-poll` - Force create a new poll (deletes previous one)
 • `/delete-poll` - Delete the current active poll
 • `/attendance-stats` - Show current attendance statistics
+• `/attendance-mute <days>` - Mute the bot for the specified number of days
+• `/attendance-unmute` - Unmute the bot if it's currently muted
+• `/attendance-mute-status` - Check your current mute status
 • `/attendance-help` - Show this help message
 
 *How it works:*

@@ -14,6 +14,7 @@ A simple Slack bot that helps track office attendance by creating polls and coll
 - Direct messaging with the bot
 - Slash commands for managing polls
 - Fully configurable settings
+- Mute functionality for users
 
 ## Available Commands
 
@@ -21,6 +22,9 @@ A simple Slack bot that helps track office attendance by creating polls and coll
 - `/new-poll` - Force create a new poll (deletes previous one)
 - `/delete-poll` - Delete the current active poll
 - `/attendance-stats` - Show current attendance statistics
+- `/attendance-mute <days>` - Mute the bot for a specified number of days
+- `/attendance-unmute` - Unmute the bot if it's currently muted
+- `/attendance-mute-status` - Check your current mute status
 - `/attendance-help` - Show help message
 
 ## Configuration
@@ -161,3 +165,20 @@ Feel free to submit issues and enhancement requests!
 ## License
 
 MIT
+
+## Muting Functionality
+
+Users can mute the bot if they know they'll be away for an extended period (vacation, business trip, etc.) and don't want to receive daily attendance polls.
+
+### Muting Commands
+
+- `/attendance-mute <days>` - Mute the bot for the specified number of days. For example, `/attendance-mute 14` would mute the bot for 2 weeks.
+- `/attendance-unmute` - Unmute the bot immediately, regardless of how many days are left in the mute period.
+- `/attendance-mute-status` - Check whether you're currently muted and, if so, how many days remain.
+
+### How Muting Works
+
+- When muted, you won't receive any attendance polls until the mute period expires
+- The bot automatically cleans up expired mutes at midnight each day
+- Muting only affects you - other team members will still receive polls as usual
+- You can always unmute early if your plans change
